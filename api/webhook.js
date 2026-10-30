@@ -51,7 +51,7 @@ function esc(s) {
 // ===================================
 
 const TEMPLATE =
-`Nama Panel:
+`Nama:
 Website:
 Email:
 Username:
