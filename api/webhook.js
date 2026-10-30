@@ -18,7 +18,11 @@ async function tg(method, data) {
   });
 
   const result = await r.json();
-  if (!result.ok) throw new Error(result.description);
+
+  if (!result.ok) {
+    throw new Error(result.description);
+  }
+
   return result.result;
 }
 
@@ -32,34 +36,60 @@ function esc(s) {
   })[c]);
 }
 
+// ==============================
 // MAIN MENU
+// ==============================
+
 function mainMenu() {
   return {
     inline_keyboard: [
       [
-        { text: "➕ ADD NEW ACCOUNT", callback_data: "add" }
+        {
+          text: "➕ ADD NEW ACCOUNT",
+          callback_data: "add"
+        }
       ],
       [
-        { text: "📋 INPUT FORMAT", callback_data: "format" },
-        { text: "📢 CHANNEL INFO", callback_data: "channel" }
+        {
+          text: "📋 INPUT FORMAT",
+          callback_data: "format"
+        },
+        {
+          text: "📢 CHANNEL INFO",
+          callback_data: "channel"
+        }
       ],
       [
-        { text: "❓ HELP & GUIDE", callback_data: "help" }
+        {
+          text: "❓ HELP & GUIDE",
+          callback_data: "help"
+        }
       ]
     ]
   };
 }
 
+// ==============================
 // BACK BUTTON
+// ==============================
+
 function backMenu() {
   return {
     inline_keyboard: [
-      [{ text: "⬅️ BACK TO MENU", callback_data: "menu" }]
+      [
+        {
+          text: "⬅️ BACK TO MENU",
+          callback_data: "menu"
+        }
+      ]
     ]
   };
 }
 
-// ACCOUNT INPUT TEMPLATE
+// ==============================
+// ACCOUNT TEMPLATE
+// ==============================
+
 const TEMPLATE =
 `Nama:
 Website:
@@ -67,11 +97,16 @@ Email:
 Username:
 Password:`;
 
+// ==============================
+// PARSE ACCOUNT
+// ==============================
+
 function parseAccount(text) {
   const data = {};
 
   for (const line of text.split("\n")) {
     const match = line.match(/^\s*([^:]+)\s*:\s*(.*)$/);
+
     if (match) {
       data[match[1].trim().toLowerCase()] =
         match[2].trim();
@@ -87,26 +122,38 @@ function parseAccount(text) {
   };
 }
 
+// ==============================
+// VALIDATE ACCOUNT
+// ==============================
+
 function validAccount(a) {
-  if (!a.name) return "Nama panel wajib diisi.";
+  if (!a.name) {
+    return "Nama panel wajib diisi.";
+  }
 
   if (a.website) {
     try {
       const u = new URL(a.website);
-      if (!["http:", "https:"].includes(u.protocol))
+
+      if (!["http:", "https:"].includes(u.protocol)) {
         return "Website harus menggunakan HTTP atau HTTPS.";
+      }
     } catch {
       return "Alamat website tidak valid.";
     }
   }
 
-  if (!a.website && !a.email && !a.username && !a.password)
+  if (!a.website && !a.email && !a.username && !a.password) {
     return "Isi minimal satu data akun.";
+  }
 
   return null;
 }
 
-// CHANNEL POST BUTTONS
+// ==============================
+// CHANNEL BUTTONS
+// ==============================
+
 function accountButtons(a) {
   const rows = [];
 
@@ -141,6 +188,10 @@ function accountButtons(a) {
   return { inline_keyboard: rows };
 }
 
+// ==============================
+// ACCOUNT MESSAGE
+// ==============================
+
 function accountMessage(a) {
   let s = `🔐 <b>${esc(a.name)}</b>\n`;
   s += `━━━━━━━━━━━━━━━━━━\n`;
@@ -163,25 +214,61 @@ function accountMessage(a) {
   return s;
 }
 
-async function showMenu(chatId, name) {
-  await tg("sendMessage", {
+// ==============================
+// SINGLE MESSAGE MENU
+// ==============================
+
+async function renderPage(chatId, messageId, text, keyboard) {
+  return tg("editMessageText", {
     chat_id: chatId,
-    text:
-      `👋 <b>WELCOME TO ACCOUNT PANEL SMS</b>\n\n` +
-      `Hello, ${esc(name)}!\n\n` +
-      `Manage your SMS panel accounts easily.\n\n` +
-      `Select a menu below to continue.`,
+    message_id: messageId,
+    text,
+    parse_mode: "HTML",
+    reply_markup: keyboard
+  });
+}
+
+// ==============================
+// SHOW MAIN MENU
+// ==============================
+
+async function showMenu(chatId, name, messageId = null) {
+  const text =
+    `👋 <b>WELCOME TO ACCOUNT PANEL SMS</b>\n\n` +
+    `Hello, ${esc(name)}!\n\n` +
+    `Manage your SMS panel accounts easily.\n\n` +
+    `Select a menu below to continue.`;
+
+  if (messageId) {
+    return renderPage(
+      chatId,
+      messageId,
+      text,
+      mainMenu()
+    );
+  }
+
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text,
     parse_mode: "HTML",
     reply_markup: mainMenu()
   });
 }
 
-module.exports = async (req, res) => {
-  if (req.method !== "POST")
-    return res.status(200).send("ACCOUNT PANEL SMS ONLINE");
+// ==============================
+// WEBHOOK
+// ==============================
 
-  if (!BOT_TOKEN || !WEBHOOK_SECRET)
+module.exports = async (req, res) => {
+
+  if (req.method !== "POST") {
+    return res.status(200).send("ACCOUNT PANEL SMS ONLINE");
+  }
+
+  if (!BOT_TOKEN || !WEBHOOK_SECRET) {
     return res.status(500).send("Configuration missing");
+  }
 
   if (
     req.headers["x-telegram-bot-api-secret-token"] !==
@@ -193,11 +280,15 @@ module.exports = async (req, res) => {
   try {
     const update = req.body;
 
+    // ==========================
     // BUTTON HANDLER
+    // ==========================
+
     if (update.callback_query) {
       const q = update.callback_query;
       const userId = String(q.from.id);
       const chatId = q.message.chat.id;
+      const messageId = q.message.message_id;
       const action = q.data;
 
       await tg("answerCallbackQuery", {
@@ -209,95 +300,116 @@ module.exports = async (req, res) => {
           chat_id: chatId,
           text: "⛔ Access denied. Admin only."
         });
+
         return res.status(200).send("OK");
       }
 
+      // BACK TO MENU
+
       if (action === "menu") {
-        await showMenu(chatId, q.from.first_name);
+        await showMenu(
+          chatId,
+          q.from.first_name,
+          messageId
+        );
       }
 
-      if (action === "add") {
-        await tg("sendMessage", {
-          chat_id: chatId,
-          text:
-            "➕ <b>ADD NEW ACCOUNT</b>\n\n" +
-            "Silakan salin format berikut, isi datanya, lalu kirim kembali ke bot.\n\n" +
-            `<pre>${esc(TEMPLATE)}</pre>\n` +
-            "Email dan username boleh dikosongkan.",
-          parse_mode: "HTML",
-          reply_markup: backMenu()
-        });
+      // ADD NEW ACCOUNT
+
+      else if (action === "add") {
+        await renderPage(
+          chatId,
+          messageId,
+          "➕ <b>ADD NEW ACCOUNT</b>\n\n" +
+          "Silakan salin format berikut, isi datanya, lalu kirim kembali ke bot.\n\n" +
+          `<pre>${esc(TEMPLATE)}</pre>\n\n` +
+          "Email dan username boleh dikosongkan.",
+          backMenu()
+        );
       }
 
-      if (action === "format") {
-        await tg("sendMessage", {
-          chat_id: chatId,
-          text:
-            "📋 <b>ACCOUNT INPUT FORMAT</b>\n\n" +
-            `<pre>${esc(TEMPLATE)}</pre>\n\n` +
-            "Pastikan nama panel diisi.",
-          parse_mode: "HTML",
-          reply_markup: backMenu()
-        });
+      // INPUT FORMAT
+
+      else if (action === "format") {
+        await renderPage(
+          chatId,
+          messageId,
+          "📋 <b>ACCOUNT INPUT FORMAT</b>\n\n" +
+          `<pre>${esc(TEMPLATE)}</pre>\n\n` +
+          "Pastikan nama panel diisi.",
+          backMenu()
+        );
       }
 
-      if (action === "channel") {
-        await tg("sendMessage", {
-          chat_id: chatId,
-          text:
-            "📢 <b>CHANNEL INFORMATION</b>\n\n" +
-            "Channel ID: <code>" +
-            esc(CHANNEL_ID || "Belum diatur") +
-            "</code>\n\n" +
-            "Posting akun akan dikirim otomatis ke channel tujuan.",
-          parse_mode: "HTML",
-          reply_markup: backMenu()
-        });
+      // CHANNEL INFO
+
+      else if (action === "channel") {
+        await renderPage(
+          chatId,
+          messageId,
+          "📢 <b>CHANNEL INFORMATION</b>\n\n" +
+          "Channel ID: <code>" +
+          esc(CHANNEL_ID || "Belum diatur") +
+          "</code>\n\n" +
+          "Posting akun akan dikirim otomatis ke channel tujuan.",
+          backMenu()
+        );
       }
 
-      if (action === "help") {
-        await tg("sendMessage", {
-          chat_id: chatId,
-          text:
-            "❓ <b>HELP & GUIDE</b>\n\n" +
-            "1. Pilih ADD NEW ACCOUNT.\n" +
-            "2. Isi formulir akun.\n" +
-            "3. Kirim formulir ke bot.\n" +
-            "4. Bot otomatis memposting ke channel.\n\n" +
-            "Pastikan data akun sudah benar sebelum dikirim.",
-          parse_mode: "HTML",
-          reply_markup: backMenu()
-        });
+      // HELP & GUIDE
+
+      else if (action === "help") {
+        await renderPage(
+          chatId,
+          messageId,
+          "❓ <b>HELP & GUIDE</b>\n\n" +
+          "1. Pilih ADD NEW ACCOUNT.\n" +
+          "2. Salin format akun.\n" +
+          "3. Isi data akun.\n" +
+          "4. Kirim formulir ke bot.\n" +
+          "5. Bot otomatis memposting ke channel.\n\n" +
+          "Pastikan data akun sudah benar sebelum dikirim.",
+          backMenu()
+        );
       }
 
       return res.status(200).send("OK");
     }
 
+    // ==========================
     // MESSAGE HANDLER
+    // ==========================
+
     const msg = update.message;
 
-    if (!msg || !msg.text || !msg.from)
+    if (!msg || !msg.text || !msg.from) {
       return res.status(200).send("OK");
+    }
 
     const userId = String(msg.from.id);
     const chatId = msg.chat.id;
     const text = msg.text.trim();
+
+    // ADMIN CHECK
 
     if (!ADMIN_IDS.includes(userId)) {
       await tg("sendMessage", {
         chat_id: chatId,
         text: "⛔ You are not authorized to use this bot."
       });
+
       return res.status(200).send("OK");
     }
 
-    // OPEN MENU
+    // START COMMAND
+
     if (text === "/start") {
       await showMenu(chatId, msg.from.first_name);
       return res.status(200).send("OK");
     }
 
     // RECEIVE ACCOUNT FORM
+
     if (/^(nama|panel)\s*:/im.test(text)) {
       const account = parseAccount(text);
       const error = validAccount(account);
@@ -305,18 +417,24 @@ module.exports = async (req, res) => {
       if (error) {
         await tg("sendMessage", {
           chat_id: chatId,
-          text: "⚠️ " + error + "\n\nSilakan perbaiki formulir dan kirim ulang."
+          text:
+            "⚠️ " + error +
+            "\n\nSilakan perbaiki formulir dan kirim ulang."
         });
+
         return res.status(200).send("OK");
       }
 
-      if (!CHANNEL_ID)
+      if (!CHANNEL_ID) {
         throw new Error("CHANNEL_ID belum diatur.");
+      }
 
       await tg("sendMessage", {
         chat_id: chatId,
         text: "⏳ Memproses akun..."
       });
+
+      // POST TO CHANNEL
 
       await tg("sendMessage", {
         chat_id: CHANNEL_ID,
@@ -324,6 +442,8 @@ module.exports = async (req, res) => {
         parse_mode: "HTML",
         reply_markup: accountButtons(account)
       });
+
+      // SUCCESS MESSAGE
 
       await tg("sendMessage", {
         chat_id: chatId,
@@ -339,7 +459,9 @@ module.exports = async (req, res) => {
     }
 
     // OTHER MESSAGE
+
     await showMenu(chatId, msg.from.first_name);
+
     return res.status(200).send("OK");
 
   } catch (error) {
