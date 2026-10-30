@@ -10,10 +10,16 @@ const ADMIN_IDS = (process.env.ADMIN_IDS || "")
 
 const API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
+// ===================================
+// TELEGRAM API
+// ===================================
+
 async function tg(method, data) {
   const r = await fetch(`${API}/${method}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json"
+    },
     body: JSON.stringify(data)
   });
 
@@ -26,6 +32,10 @@ async function tg(method, data) {
   return result.result;
 }
 
+// ===================================
+// HTML ESCAPE
+// ===================================
+
 function esc(s) {
   return String(s || "").replace(/[&<>"']/g, c => ({
     "&": "&amp;",
@@ -36,9 +46,20 @@ function esc(s) {
   })[c]);
 }
 
-// ==============================
+// ===================================
+// ACCOUNT TEMPLATE
+// ===================================
+
+const TEMPLATE =
+`Nama:
+Website:
+Email:
+Username:
+Password:`;
+
+// ===================================
 // MAIN MENU
-// ==============================
+// ===================================
 
 function mainMenu() {
   return {
@@ -69,13 +90,21 @@ function mainMenu() {
   };
 }
 
-// ==============================
-// BACK BUTTON
-// ==============================
+// ===================================
+// BACK MENU + COPY BUTTON
+// ===================================
 
 function backMenu() {
   return {
     inline_keyboard: [
+      [
+        {
+          text: "📋 COPY INPUT FORMAT",
+          copy_text: {
+            text: TEMPLATE
+          }
+        }
+      ],
       [
         {
           text: "⬅️ BACK TO MENU",
@@ -86,20 +115,9 @@ function backMenu() {
   };
 }
 
-// ==============================
-// ACCOUNT TEMPLATE
-// ==============================
-
-const TEMPLATE =
-`Nama:
-Website:
-Email:
-Username:
-Password:`;
-
-// ==============================
+// ===================================
 // PARSE ACCOUNT
-// ==============================
+// ===================================
 
 function parseAccount(text) {
   const data = {};
@@ -122,9 +140,9 @@ function parseAccount(text) {
   };
 }
 
-// ==============================
+// ===================================
 // VALIDATE ACCOUNT
-// ==============================
+// ===================================
 
 function validAccount(a) {
   if (!a.name) {
@@ -150,63 +168,84 @@ function validAccount(a) {
   return null;
 }
 
-// ==============================
+// ===================================
 // CHANNEL BUTTONS
-// ==============================
+// ===================================
 
 function accountButtons(a) {
   const rows = [];
 
   if (a.website) {
-    rows.push([{
-      text: "🌐 OPEN WEBSITE",
-      url: a.website
-    }]);
+    rows.push([
+      {
+        text: "🌐 OPEN WEBSITE",
+        url: a.website
+      }
+    ]);
   }
 
   if (a.email) {
-    rows.push([{
-      text: "📋 COPY EMAIL",
-      copy_text: { text: a.email }
-    }]);
+    rows.push([
+      {
+        text: "📋 COPY EMAIL",
+        copy_text: {
+          text: a.email
+        }
+      }
+    ]);
   }
 
   if (a.username) {
-    rows.push([{
-      text: "👤 COPY USERNAME",
-      copy_text: { text: a.username }
-    }]);
+    rows.push([
+      {
+        text: "👤 COPY USERNAME",
+        copy_text: {
+          text: a.username
+        }
+      }
+    ]);
   }
 
   if (a.password) {
-    rows.push([{
-      text: "🔑 COPY PASSWORD",
-      copy_text: { text: a.password }
-    }]);
+    rows.push([
+      {
+        text: "🔑 COPY PASSWORD",
+        copy_text: {
+          text: a.password
+        }
+      }
+    ]);
   }
 
-  return { inline_keyboard: rows };
+  return {
+    inline_keyboard: rows
+  };
 }
 
-// ==============================
+// ===================================
 // ACCOUNT MESSAGE
-// ==============================
+// ===================================
 
 function accountMessage(a) {
   let s = `🔐 <b>${esc(a.name)}</b>\n`;
+
   s += `━━━━━━━━━━━━━━━━━━\n`;
 
-  if (a.website)
+  if (a.website) {
     s += `🌐 Website: ${esc(a.website)}\n`;
+  }
 
-  if (a.email)
+  if (a.email) {
     s += `📧 Email: ${esc(a.email)}\n`;
+  }
 
-  if (a.username)
+  if (a.username) {
     s += `👤 Username: ${esc(a.username)}\n`;
+  }
 
-  if (a.password)
+  if (a.password) {
     s += `🔑 Password: ${esc(a.password)}\n`;
+  }
 
   s += `━━━━━━━━━━━━━━━━━━\n`;
   s += `<i>ACCOUNT PANEL SMS</i>`;
@@ -214,11 +253,16 @@ function accountMessage(a) {
   return s;
 }
 
-// ==============================
-// SINGLE MESSAGE MENU
-// ==============================
+// ===================================
+// EDIT EXISTING MESSAGE
+// ===================================
 
-async function renderPage(chatId, messageId, text, keyboard) {
+async function renderPage(
+  chatId,
+  messageId,
+  text,
+  keyboard
+) {
   return tg("editMessageText", {
     chat_id: chatId,
     message_id: messageId,
@@ -228,11 +272,15 @@ async function renderPage(chatId, messageId, text, keyboard) {
   });
 }
 
-// ==============================
+// ===================================
 // SHOW MAIN MENU
-// ==============================
+// ===================================
 
-async function showMenu(chatId, name, messageId = null) {
+async function showMenu(
+  chatId,
+  name,
+  messageId = null
+) {
   const text =
     `👋 <b>WELCOME TO ACCOUNT PANEL SMS</b>\n\n` +
     `Hello, ${esc(name)}!\n\n` +
@@ -256,18 +304,22 @@ async function showMenu(chatId, name, messageId = null) {
   });
 }
 
-// ==============================
-// WEBHOOK
-// ==============================
+// ===================================
+// WEBHOOK HANDLER
+// ===================================
 
 module.exports = async (req, res) => {
 
   if (req.method !== "POST") {
-    return res.status(200).send("ACCOUNT PANEL SMS ONLINE");
+    return res.status(200).send(
+      "ACCOUNT PANEL SMS ONLINE"
+    );
   }
 
   if (!BOT_TOKEN || !WEBHOOK_SECRET) {
-    return res.status(500).send("Configuration missing");
+    return res.status(500).send(
+      "Configuration missing"
+    );
   }
 
   if (
@@ -280,12 +332,13 @@ module.exports = async (req, res) => {
   try {
     const update = req.body;
 
-    // ==========================
+    // ===================================
     // BUTTON HANDLER
-    // ==========================
+    // ===================================
 
     if (update.callback_query) {
       const q = update.callback_query;
+
       const userId = String(q.from.id);
       const chatId = q.message.chat.id;
       const messageId = q.message.message_id;
@@ -320,10 +373,12 @@ module.exports = async (req, res) => {
         await renderPage(
           chatId,
           messageId,
+
           "➕ <b>ADD NEW ACCOUNT</b>\n\n" +
-          "Silakan salin format berikut, isi datanya, lalu kirim kembali ke bot.\n\n" +
+          "Silakan tekan tombol COPY INPUT FORMAT untuk menyalin format akun.\n\n" +
           `<pre>${esc(TEMPLATE)}</pre>\n\n` +
-          "Email dan username boleh dikosongkan.",
+          "Isi data akun, lalu kirim kembali ke bot.",
+
           backMenu()
         );
       }
@@ -334,9 +389,11 @@ module.exports = async (req, res) => {
         await renderPage(
           chatId,
           messageId,
+
           "📋 <b>ACCOUNT INPUT FORMAT</b>\n\n" +
           `<pre>${esc(TEMPLATE)}</pre>\n\n` +
-          "Pastikan nama panel diisi.",
+          "Tekan tombol di bawah untuk menyalin format.",
+
           backMenu()
         );
       }
@@ -347,12 +404,23 @@ module.exports = async (req, res) => {
         await renderPage(
           chatId,
           messageId,
+
           "📢 <b>CHANNEL INFORMATION</b>\n\n" +
           "Channel ID: <code>" +
           esc(CHANNEL_ID || "Belum diatur") +
           "</code>\n\n" +
           "Posting akun akan dikirim otomatis ke channel tujuan.",
-          backMenu()
+
+          {
+            inline_keyboard: [
+              [
+                {
+                  text: "⬅️ BACK TO MENU",
+                  callback_data: "menu"
+                }
+              ]
+            ]
+          }
         );
       }
 
@@ -362,13 +430,15 @@ module.exports = async (req, res) => {
         await renderPage(
           chatId,
           messageId,
+
           "❓ <b>HELP & GUIDE</b>\n\n" +
           "1. Pilih ADD NEW ACCOUNT.\n" +
-          "2. Salin format akun.\n" +
+          "2. Tekan COPY INPUT FORMAT.\n" +
           "3. Isi data akun.\n" +
           "4. Kirim formulir ke bot.\n" +
           "5. Bot otomatis memposting ke channel.\n\n" +
           "Pastikan data akun sudah benar sebelum dikirim.",
+
           backMenu()
         );
       }
@@ -376,9 +446,9 @@ module.exports = async (req, res) => {
       return res.status(200).send("OK");
     }
 
-    // ==========================
+    // ===================================
     // MESSAGE HANDLER
-    // ==========================
+    // ===================================
 
     const msg = update.message;
 
@@ -404,7 +474,11 @@ module.exports = async (req, res) => {
     // START COMMAND
 
     if (text === "/start") {
-      await showMenu(chatId, msg.from.first_name);
+      await showMenu(
+        chatId,
+        msg.from.first_name
+      );
+
       return res.status(200).send("OK");
     }
 
@@ -447,10 +521,12 @@ module.exports = async (req, res) => {
 
       await tg("sendMessage", {
         chat_id: chatId,
+
         text:
           "✅ <b>ACCOUNT SUCCESSFULLY POSTED!</b>\n\n" +
           "Panel: " + esc(account.name) +
           "\n\nAkun berhasil dikirim ke channel.",
+
         parse_mode: "HTML",
         reply_markup: mainMenu()
       });
@@ -460,7 +536,10 @@ module.exports = async (req, res) => {
 
     // OTHER MESSAGE
 
-    await showMenu(chatId, msg.from.first_name);
+    await showMenu(
+      chatId,
+      msg.from.first_name
+    );
 
     return res.status(200).send("OK");
 
